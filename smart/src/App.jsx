@@ -40,7 +40,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 
-const API_URL = "http://localhost:5000/api/notes";
+const API_URL = "https://mysmartnotes-1.onrender.com/api/notes";
 const PROFILE_KEY = "smart-notes-profile";
 const THEME_KEY = "smart-notes-pro-theme";
 

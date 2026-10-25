@@ -14,50 +14,93 @@ import noteRoutes from "./routes/noteRoutes.js";
 
 const app = express();
 
+// Allowed frontend origins
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://my-smart-notes-lovat.vercel.app",
+];
+
+// CORS Configuration
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin: (origin, callback) => {
+      // Allow requests without an Origin header and approved frontends
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.error("CORS blocked origin:", origin);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
+// Middleware
 app.use(express.json());
 
-// Backend status
+// Backend status route
 app.get("/", (req, res) => {
-  res.json({
+  res.status(200).json({
     success: true,
     message: "Smart Notes Backend is running",
   });
 });
 
-// Health check
+// Health check route
 app.get("/api/health", (req, res) => {
-  res.json({
+  res.status(200).json({
     success: true,
     message: "Backend is working",
   });
 });
 
-// Notes CRUD APIs
+// Notes CRUD API routes
 app.use("/api/notes", noteRoutes);
 
-// Unknown route
+// Handle unknown routes
 app.use((req, res) => {
   res.status(404).json({
     success: false,
     message: "Route not found",
+    path: req.originalUrl,
   });
 });
 
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error("Backend error:", err.message);
+
+  if (err.message === "Not allowed by CORS") {
+    return res.status(403).json({
+      success: false,
+      message: "CORS error: frontend origin is not allowed",
+    });
+  }
+
+  res.status(500).json({
+    success: false,
+    message: "Internal server error",
+  });
+});
+
+// Server port
 const PORT = process.env.PORT || 5000;
 
+// Start server after connecting to MongoDB
 const startServer = async () => {
   try {
     await connectDB();
 
     app.listen(PORT, () => {
-      console.log(`Server running at http://localhost:${PORT}`);
-      console.log(`Notes API: http://localhost:${PORT}/api/notes`);
+      console.log(`Server running on port ${PORT}`);
+      console.log(
+        `Notes API: https://mysmartnotes-1.onrender.com/api/notes`
+      );
+      console.log(
+        `Health check: https://mysmartnotes-1.onrender.com/api/health`
+      );
     });
   } catch (error) {
     console.error("Server startup failed:", error.message);

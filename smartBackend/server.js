@@ -14,33 +14,45 @@ import noteRoutes from "./routes/noteRoutes.js";
 
 const app = express();
 
-// Allowed frontend origins
+// ========================================
+// ALLOWED FRONTEND DOMAINS
+// ========================================
 const allowedOrigins = [
   "http://localhost:5173",
   "https://my-smart-notes-lovat.vercel.app",
+  "https://my-smart-notes-381jr4a8w-mayuri-4f59.vercel.app",
 ];
 
-// CORS Configuration
+// ========================================
+// CORS CONFIGURATION
+// ========================================
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests without an Origin header and approved frontends
       if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        console.error("CORS blocked origin:", origin);
-        callback(new Error("Not allowed by CORS"));
+        return callback(null, true);
       }
+
+      console.error("CORS blocked origin:", origin);
+
+      return callback(
+        new Error(`CORS blocked origin: ${origin}`)
+      );
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: false,
   })
 );
 
-// Middleware
-app.use(express.json());
+// ========================================
+// MIDDLEWARE
+// ========================================
+app.use(express.json({ limit: "10mb" }));
 
-// Backend status route
+// ========================================
+// ROOT ROUTE
+// ========================================
 app.get("/", (req, res) => {
   res.status(200).json({
     success: true,
@@ -48,7 +60,9 @@ app.get("/", (req, res) => {
   });
 });
 
-// Health check route
+// ========================================
+// HEALTH CHECK
+// ========================================
 app.get("/api/health", (req, res) => {
   res.status(200).json({
     success: true,
@@ -56,10 +70,14 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// Notes CRUD API routes
+// ========================================
+// NOTES CRUD API
+// ========================================
 app.use("/api/notes", noteRoutes);
 
-// Handle unknown routes
+// ========================================
+// UNKNOWN ROUTE HANDLER
+// ========================================
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -68,38 +86,52 @@ app.use((req, res) => {
   });
 });
 
-// Global error handler
+// ========================================
+// GLOBAL ERROR HANDLER
+// ========================================
 app.use((err, req, res, next) => {
   console.error("Backend error:", err.message);
 
-  if (err.message === "Not allowed by CORS") {
+  if (err.message.startsWith("CORS blocked origin:")) {
     return res.status(403).json({
       success: false,
-      message: "CORS error: frontend origin is not allowed",
+      message: "Frontend domain is not allowed by CORS",
     });
   }
 
-  res.status(500).json({
+  if (err instanceof SyntaxError && err.status === 400) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid JSON request body",
+    });
+  }
+
+  return res.status(500).json({
     success: false,
     message: "Internal server error",
   });
 });
 
-// Server port
+// ========================================
+// SERVER PORT
+// ========================================
 const PORT = process.env.PORT || 5000;
 
-// Start server after connecting to MongoDB
+// ========================================
+// CONNECT DATABASE AND START SERVER
+// ========================================
 const startServer = async () => {
   try {
     await connectDB();
 
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
+      console.log("MongoDB connection initialized successfully");
       console.log(
-        `Notes API: https://mysmartnotes-1.onrender.com/api/notes`
+        "Notes API: https://mysmartnotes-1.onrender.com/api/notes"
       );
       console.log(
-        `Health check: https://mysmartnotes-1.onrender.com/api/health`
+        "Health check: https://mysmartnotes-1.onrender.com/api/health"
       );
     });
   } catch (error) {
